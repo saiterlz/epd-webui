@@ -142,6 +142,8 @@ async function writeImage(data, step = 'bw') {
     const count = Math.round(data.length / mtu);
     let chunkIdx = 0;
     let noReplyCount = interleavedCount;
+    // iOS/Bluefy fix: force all writes to use withResponse
+    const forceWithResponse = true;
     for (let i = 0; i < data.length; i += mtu) {
         const currentTime = (Date.now() - startTime) / 1000.0;
         setStatus(`${step === 'bw' ? '黑白' : '颜色'}块: ${chunkIdx + 1}/${count + 1}, 总用时: ${currentTime}s`);
@@ -149,7 +151,11 @@ async function writeImage(data, step = 'bw') {
             (step === 'bw' ? 0x0F : 0x00) | (i === 0 ? 0x00 : 0xF0),
             ...data.slice(i, i + mtu)
         ];
-        if (noReplyCount > 0) {
+        if (forceWithResponse) {
+            // iOS/Bluefy fix: always use withResponse
+            await write(EpdCmd.WRITE_IMG, payload, true);
+            noReplyCount = interleavedCount;
+        } else if (noReplyCount > 0) {
             await write(EpdCmd.WRITE_IMG, payload, false);
             noReplyCount--;
         } else {
